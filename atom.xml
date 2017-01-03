@@ -1,0 +1,435 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>胖茶的在线笔记</title>
+  
+  <link href="/atom.xml" rel="self"/>
+  
+  <link href="https://sodatea.github.io/"/>
+  <updated>2016-09-09T08:10:25.000Z</updated>
+  <id>https://sodatea.github.io/</id>
+  
+  <author>
+    <name>sodatea</name>
+    
+  </author>
+  
+  <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>JavaScript 的设计失误（历史、现状以及未来）</title>
+    <link href="https://sodatea.github.io/2016/07/14/javascript-design-regrets-and-gotchas/"/>
+    <id>https://sodatea.github.io/2016/07/14/javascript-design-regrets-and-gotchas/</id>
+    <published>2016-07-14T09:43:38.000Z</published>
+    <updated>2016-09-09T08:10:25.000Z</updated>
+    
+    <content type="html"><![CDATA[<h2 id="typeof-null-39-object-39"><a href="#typeof-null-39-object-39" class="headerlink" title="typeof null === &#39;object&#39;"></a><code>typeof null === &#39;object&#39;</code></h2><p>这是一个众所周知的失误。这个问题其实源于<a href="http://www.2ality.com/2013/10/typeof-null.html" target="_blank" rel="external">初版 JavaScript 实现中的一个 bug</a>。</p>
+<blockquote>
+<p>注：上述文章引用的代码其实已经不算是最初版本的实现了，但 Brendan Eich 自己也在 Twitter 上表示，这是一个 <a href="https://twitter.com/BrendanEich/status/617450289889607681" target="_blank" rel="external">abstraction leak</a>，可以理解为变相承认这是代码 bug。</p>
+</blockquote>
+<a id="more"></a>
+<h2 id="typeof-NaN-39-number-39"><a href="#typeof-NaN-39-number-39" class="headerlink" title="typeof NaN === &#39;number&#39;"></a><code>typeof NaN === &#39;number&#39;</code></h2><p>不太确定这个算不算一个设计失误，但毫无疑问这是反直觉的。</p>
+<p>说到 NaN，其实还有更多有趣的知识点，这个 13 分钟的 talk 非常值得一看：<a href="https://github.com/lewisjellis/nantalk" target="_blank" rel="external">Idiosyncrasies of NaN</a>。</p>
+<h2 id="NaN-isNaN-Number-isNaN"><a href="#NaN-isNaN-Number-isNaN" class="headerlink" title="NaN, isNaN(), Number.isNaN()"></a><code>NaN</code>, <code>isNaN()</code>, <code>Number.isNaN()</code></h2><p><code>NaN</code> 是 JavaScript 中唯一一个不等于自身的值。虽然这个设计其实理由很充分（参见前面推荐的那个 talk，在 IEE 754 规范中有非常多的二进制序列都可以被当做 <code>NaN</code>，所以任意计算出两个 <code>NaN</code>，它们在二进制表示上很可能不同），但不管怎样，这个还是非常值得吐槽……</p>
+<p><code>isNaN()</code> 这个函数的命名和行为非常让人费解：</p>
+<ol>
+<li>它并不只是用来判断一个值是否为 <code>NaN</code>，因为所有对于所有非数值型的值它也返回 <code>true</code>；</li>
+<li>但也不能说它是用来判断一个值是否为数值的，因为根据前文，<code>NaN</code> 的类型是 <code>number</code>，应当被认为是一个数值。</li>
+</ol>
+<p>还好，ES2015 引入了 <code>Number.isNaN()</code> 来拨乱反正：它只对参数为 <code>NaN</code> 的情况返回 <code>true</code>。</p>
+<p>其他一些资料：</p>
+<ul>
+<li><a href="https://github.com/jquery-foundation/standards/blob/master/reports/TC39/2016-07.md#the-distinct-nan-values" target="_blank" rel="external">https://github.com/jquery-foundation/standards/blob/master/reports/TC39/2016-07.md#the-distinct-nan-values</a></li>
+<li><a href="https://github.com/ljharb/get-nans" target="_blank" rel="external">https://github.com/ljharb/get-nans</a></li>
+<li><a href="https://github.com/tc39/ecma262/issues/635" target="_blank" rel="external">https://github.com/tc39/ecma262/issues/635</a></li>
+</ul>
+<h2 id="分号自动插入（Automatic-Semicolon-insertion，ASI）机制"><a href="#分号自动插入（Automatic-Semicolon-insertion，ASI）机制" class="headerlink" title="分号自动插入（Automatic Semicolon insertion，ASI）机制"></a>分号自动插入（Automatic Semicolon insertion，ASI）机制</h2><h3 id="Restricted-Productions"><a href="#Restricted-Productions" class="headerlink" title="Restricted Productions"></a>Restricted Productions</h3><p>据 Brendan Eich 称，JavaScript 最初被设计出来时，<a href="https://brendaneich.com/2008/04/popularity/" target="_blank" rel="external">上级要求这个语言的语法必须像 Java</a>。所以，跟 Java 一样，JavaScript 的语句在解析时，是 <strong>需要分号</strong> 分隔的。但是后来出于降低学习成本，或者提高语言的容错性的考虑，他在语法解析中加入了分号自动插入的纠正机制。</p>
+<p>这个做法的本意当然是好的，有不少其他语言也是这么处理的（比如 Swift）。但是问题在于，JavaScript 的语法设计得不够安全，导致 ASI 有不少特殊情况无法处理到，在某些情况下会错误地加上分号（在标准文档里这些被称为 <a href="https://tc39.github.io/ecma262/#sec-rules-of-automatic-semicolon-insertion" target="_blank" rel="external">Restricted Productions</a>）。<br>最典型的是 return 语句</p>
+<figure class="highlight puppet"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">// returns undefined</div><div class="line"><span class="keyword">return</span></div><div class="line">&#123;</div><div class="line">    <span class="literal">status</span>: <span class="keyword">true</span></div><div class="line">&#125;;</div><div class="line"></div><div class="line">// <span class="keyword">returns</span> &#123; <span class="literal">status</span>: <span class="keyword">true</span> &#125;</div><div class="line"><span class="keyword">return</span> &#123;</div><div class="line">    <span class="literal">status</span>: <span class="keyword">true</span></div><div class="line">&#125;;</div></pre></td></tr></table></figure>
+<p>这导致了 JavaScript 社区写代码时花括号都不换行，这在其他编程语言社区是无法想象的。</p>
+<h3 id="漏加分号的情况"><a href="#漏加分号的情况" class="headerlink" title="漏加分号的情况"></a>漏加分号的情况</h3><p>还有另外一种 ASI 不会纠正的问题：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">var</span> a = <span class="function"><span class="keyword">function</span>(<span class="params">x</span>) </span>&#123; <span class="built_in">console</span>.log(x) &#125;</div><div class="line">(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</div><div class="line">    <span class="comment">// do something</span></div><div class="line">&#125;)()</div></pre></td></tr></table></figure>
+<p>这类问题通常出现在两个文件被压缩后再拼接到一起时。</p>
+<h3 id="semicolon-less-风格"><a href="#semicolon-less-风格" class="headerlink" title="semicolon-less 风格"></a><a href="https://www.youtube.com/watch?v=gsfbh17Ax9I" target="_blank" rel="external">semicolon-less 风格</a></h3><p>Restricted Productions 的问题已经是语言的特性了并且无法绕开，无论如何我们都需要去学习掌握。</p>
+<p>而前面提到的第二类问题，ASI 失灵的情况，采用强制分号的代码风格其实很难规避（现在有了 ESLint 的 <code>no-unexpected-multiline</code> 规则会后会容易点）。更好的办法是实践 semicolon-less 的代码风格，不在行末写分号，而是当行首出现 <code>+ - [ ( /</code> 这五个操作符之一时再往前加分号，这样的记忆成本和出错概率远低于强制分号风格。</p>
+<h2 id="与-Object-is"><a href="#与-Object-is" class="headerlink" title="==, === 与 Object.is()"></a><code>==</code>, <code>===</code> 与 <code>Object.is()</code></h2><p>JavaScript 是一种弱类型语言，存在隐式类型转换。因此，<code>==</code> 的行为非常令人费解：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">[] == ![]   <span class="comment">// true</span></div><div class="line"><span class="number">3</span> == <span class="string">'3'</span>    <span class="comment">// true</span></div></pre></td></tr></table></figure>
+<p>所以各种 JavaScript 书籍都推荐使用 <code>===</code> 替代 <code>==</code> （仅在 null checking 之类的情况时可以除外）</p>
+<p>但事实上，<code>===</code> 也并不总是靠谱，它<a href="http://www.2ality.com/2012/03/stricter-equality.html" target="_blank" rel="external">至少存在两类例外情况</a>：</p>
+<ol>
+<li>前文提到过， <code>NaN === NaN</code> 会返回 <code>false</code></li>
+<li><code>+0 === -0</code> 会返回 <code>true</code>，然而这两个其实是不相等的值（<code>1 / +0 === Infinity; 1 / -0 === -Infinity</code>）</li>
+</ol>
+<p>一直到 ES2015，我们才有了一个可以比较两个值是否严格相等的方法：<code>Object.is()</code>，它对于 <code>===</code> 的这两种例外都做了正确的处理。</p>
+<blockquote>
+<p><a href="https://dorey.github.io/JavaScript-Equality-Table/" target="_blank" rel="external">关于 <code>==</code> 的坑，这里有份 JavaScript Equality Table 可以一看</a></p>
+</blockquote>
+<h2 id="Falsy-values"><a href="#Falsy-values" class="headerlink" title="Falsy values"></a>Falsy values</h2><p>JavaScript 中至少有六种假值（在条件表达式中与 <code>false</code> 等价）：<code>0</code>, <code>null</code>, <code>undefined</code>, <code>false</code>, <code>&#39;&#39;</code> 以及 <code>NaN</code>。</p>
+<h2 id="、-操作符相关的隐式类型转换"><a href="#、-操作符相关的隐式类型转换" class="headerlink" title="+、- 操作符相关的隐式类型转换"></a><code>+</code>、<code>-</code> 操作符相关的隐式类型转换</h2><p>大致可以这样记：作为二元操作符的 <code>+</code> 会尽可能地把两边的值转为字符串，而 <code>-</code> 和作为一元操作符的 <code>+</code> 则会尽可能地把值转为数字。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">(<span class="string">"foo"</span> + + <span class="string">"bar"</span>) === <span class="string">"fooNaN"</span> <span class="comment">// true</span></div><div class="line"><span class="string">'3'</span> + <span class="number">1</span> <span class="comment">// '31'</span></div><div class="line"><span class="string">'3'</span> - <span class="number">1</span> <span class="comment">// 2</span></div><div class="line"><span class="string">'222'</span> - - <span class="string">'111'</span> <span class="comment">// 333</span></div></pre></td></tr></table></figure>
+<h2 id="null、undefined-以及数组的-“holes”"><a href="#null、undefined-以及数组的-“holes”" class="headerlink" title="null、undefined 以及数组的 “holes”"></a><code>null</code>、<code>undefined</code> 以及数组的 “holes”</h2><p>在一个语言中同时有 <code>null</code> 和 <code>undefined</code> 两个表示空值的原生类型，乍看起来很难理解，不过这里有一些讨论可以一看：</p>
+<ul>
+<li><a href="https://twitter.com/BrendanEich/status/330775086208524288" target="_blank" rel="external">Java has null but only for reference types. With untyped JS, the uninitialized value should not be reference-y or convert to 0</a>.</li>
+<li><a href="https://github.com/DavidBruant/ECMAScript-regrets/issues/26#issue-13943504" target="_blank" rel="external">GitHub 上的一些讨论</a></li>
+<li><a href="https://twitter.com/BrendanEich/status/652442934151938048" target="_blank" rel="external">Null for Objects and undefined for primitives</a></li>
+</ul>
+<p>不过数组里的 “holes” 就非常难以理解了。</p>
+<p>产生 holes 的方法有两种：一是定义数组字面量时写两个连续的逗号：<code>var a = [1, , 2]</code>；二是使用 <code>Array</code> 对象的构造器，<code>new Array(3)</code>。</p>
+<p>数组的各种方法对于 holes 的处理非常非常非常不一致，有的会跳过（<code>forEach</code>），有的不处理但是保留（<code>map</code>），有的会消除掉 holes（<code>filter</code>），还有的会当成 undefined 来处理（<code>join</code>）。这可以说是 JavaScript 中最大的坑之一，不看文档很难自己理清楚。</p>
+<p>具体可以参考这两篇文章：</p>
+<ul>
+<li><a href="http://www.2ality.com/2013/07/array-iteration-holes.html" target="_blank" rel="external">Array iteration and holes in JavaScript</a></li>
+<li><a href="http://www.2ality.com/2015/09/holes-arrays-es6.html" target="_blank" rel="external">ECMAScript 6: holes in Arrays</a></li>
+</ul>
+<h2 id="Array-like-objects"><a href="#Array-like-objects" class="headerlink" title="Array-like objects"></a>Array-like objects</h2><p>JavaScript 中，类数组但不是数组的对象不少，这类对象往往有 <code>length</code> 属性、可以被遍历，但缺乏一些数组原型上的方法，用起来非常不便。比如在为了能让 <code>arguments</code> 对象用上 <code>shift</code> 方法，我们往往需要先写这样一条语句：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">var</span> args = <span class="built_in">Array</span>.prototype.slice.apply(<span class="built_in">arguments</span>)</div></pre></td></tr></table></figure>
+<p>非常不便。</p>
+<p>在 ES2015 中，<code>arguments</code> 对象不再被建议使用，我们可以用 rest parameter （<code>function f(...args) {}</code>）代替，这样拿到的对象就直接是数组了。</p>
+<p>不过在语言标准之外，DOM 标准中也定义了不少 Array-like 的对象，比如 <code>NodeList</code> 和 <code>HTMLCollection</code>。<br>对于这些对象，在 ES2015 中我们可以用 spread operator 处理：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">const</span> nodeList = <span class="built_in">document</span>.querySelectorAll(<span class="string">'div'</span>)</div><div class="line"><span class="keyword">const</span> nodeArray = [...nodeList]</div><div class="line"></div><div class="line"><span class="built_in">console</span>.log(<span class="built_in">Object</span>.prototype.toString.call(nodeList))   <span class="comment">// [object NodeList]</span></div><div class="line"><span class="built_in">console</span>.log(<span class="built_in">Object</span>.prototype.toString.call(nodeArray))   <span class="comment">// [object Array]</span></div></pre></td></tr></table></figure>
+<h2 id="arguments"><a href="#arguments" class="headerlink" title="arguments"></a><code>arguments</code></h2><p>在非严格模式（sloppy mode）下，对 arguments 赋值会改变对应的 <strong>形参</strong>。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">function</span> <span class="title">a</span>(<span class="params">x</span>) </span>&#123;</div><div class="line">    <span class="built_in">console</span>.log(x === <span class="number">1</span>);</div><div class="line">    <span class="built_in">arguments</span>[<span class="number">0</span>] = <span class="number">2</span>;</div><div class="line">    <span class="built_in">console</span>.log(x === <span class="number">2</span>);	<span class="comment">// true</span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">function</span> <span class="title">b</span>(<span class="params">x</span>) </span>&#123;</div><div class="line"><span class="meta">    'use strict'</span>;</div><div class="line">    <span class="built_in">console</span>.log(x === <span class="number">1</span>);</div><div class="line">    <span class="built_in">arguments</span>[<span class="number">0</span>] = <span class="number">2</span>;</div><div class="line">    <span class="built_in">console</span>.log(x === <span class="number">2</span>);	<span class="comment">// false</span></div><div class="line">&#125;</div><div class="line"></div><div class="line">a(<span class="number">1</span>);</div><div class="line">b(<span class="number">1</span>);</div></pre></td></tr></table></figure>
+<h2 id="函数级作用域-与-变量提升（Variable-hoisting）"><a href="#函数级作用域-与-变量提升（Variable-hoisting）" class="headerlink" title="函数级作用域 与 变量提升（Variable hoisting）"></a>函数级作用域 与 变量提升（Variable hoisting）</h2><h3 id="函数级作用域"><a href="#函数级作用域" class="headerlink" title="函数级作用域"></a>函数级作用域</h3><p>蝴蝶书上的例子想必大家都看过：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// The closure in loop problem</span></div><div class="line"><span class="keyword">for</span> (<span class="keyword">var</span> i = <span class="number">0</span>; i !== <span class="number">10</span>; ++i) &#123;</div><div class="line">  setTimeout(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123; <span class="built_in">console</span>.log(i) &#125;, <span class="number">0</span>)</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>函数级作用域本身没有问题，但是如果如果只能使用函数级作用域的话，在很多代码中它会显得非常 <strong>反直觉</strong>，比如上面这个循环的例子，对程序员来说，根据花括号的位置确定变量作用域远比找到外层函数容易得多。</p>
+<p>在以前，要解决这个问题，我们只能使用闭包 + IIFE 产生一个新作用域，代码非常难看（其实 <code>with</code> 以及 <code>catch</code> 语句后面跟的代码块也算是块级作用域，但这并不通用）。</p>
+<p>幸而现在 ES2015 引入了 <code>let</code> / <code>const</code>，让我们终于可以用上真正的块级作用域。</p>
+<h3 id="变量提升"><a href="#变量提升" class="headerlink" title="变量提升"></a>变量提升</h3><p>JavaScript 引擎在执行代码的时候，会先处理作用域内所有的变量声明，给变量分配空间（在标准里叫 binding），然后再执行代码。</p>
+<p>这本来没什么问题，但是 <code>var</code> 声明在被分配空间的同时也会被初始化成 <code>undefined</code>（<a href="https://es5.github.io/#x10.2.1.1.2" target="_blank" rel="external">ES5 中的 CreateMutableBinding</a>），这就相当于把 <code>var</code> 声明的变量提升到了函数作用域的开头，也就是所谓的 “hoisting”。</p>
+<p>ES2015 中引入的 <code>let</code> / <code>const</code> 则实现了 temporal dead zone，虽然进入作用域时用 <code>let</code> 和 <code>const</code> 声明的变量也会被分配空间，但不会被初始化。在初始化语句之前，如果出现对变量的引用，会报 <code>ReferenceError</code>。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// without TDZ</span></div><div class="line"><span class="built_in">console</span>.log(a)  <span class="comment">// undefined</span></div><div class="line"><span class="keyword">var</span> a = <span class="number">1</span></div><div class="line"></div><div class="line"><span class="comment">// with TDZ</span></div><div class="line"><span class="built_in">console</span>.log(b)  <span class="comment">// ReferenceError</span></div><div class="line"><span class="keyword">let</span> b = <span class="number">2</span></div></pre></td></tr></table></figure>
+<p>在标准层面，这是通过把 CreateMutableBing 内部方法分拆成 CreateMutableBinding 和 InitializeBinding 两步实现的，只有 VarDeclaredNames 才会执行 InitializeBinding 方法。</p>
+<h2 id="let-const"><a href="#let-const" class="headerlink" title="let / const"></a><code>let</code> / <code>const</code></h2><p>然而，<code>let</code> 和 <code>const</code> 的引入也带来了一个坑。主要是这两个关键词的命名不够精确合理。</p>
+<p><code>const</code> 关键词所定义的是一个 <em>immutable binding</em>（类似于 Java 中的 <code>final</code> 关键词），而非真正的常量（ <em>constant</em> ），这一点对于很多人来说也是反直觉的。</p>
+<p>ES2015 规范的主笔 Allen Wirfs-Brock 在 <a href="https://esdiscuss.org/topic/should-const-be-favored-over-let#content-6" target="_blank" rel="external">ESDiscuss 的一个帖子里</a> 表示，如果可以从头再来的话，他会更倾向于选择 <code>let var</code> / <code>let</code> 或者 <code>mut</code> / <code>let</code> 替代现在的这两个关键词，可惜这只能是一个美好的空想了。</p>
+<h2 id="for-in"><a href="#for-in" class="headerlink" title="for...in"></a><code>for...in</code></h2><p><code>for...in</code> 的问题在于它会遍历到原型链上的属性，这个大家应该都知道的，使用时需要加上 <code>obj.hasOwnProperty(key)</code> 判断才安全。</p>
+<p>在 ES2015+ 中，使用 <code>for (const key of Object.keys(obj))</code> 或者 <code>for (const [key, value] of Object.entries())</code> 可以绕开这个问题。</p>
+<blockquote>
+<p>顺便提一下 <code>Object.keys()</code>、<code>Object.getOwnPropertyNames()</code>、<code>Reflect.ownKeys()</code> 的区别：我们最常用的一般是 <code>Object.keys()</code> 方法，<code>Object.getOwnPropertyNames()</code> 会把 <code>enumerable: false</code> 的属性名也加进来，而 <code>Reflect.ownKeys()</code> 在此基础上还会加上 <code>Symbol</code> 类型的键。</p>
+</blockquote>
+<h2 id="with"><a href="#with" class="headerlink" title="with"></a><code>with</code></h2><p>最主要的问题在于它依赖于运行时语义，影响优化。</p>
+<p>此外还会降低程序可读性、易出错、易泄露全局变量。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">function</span> <span class="title">f</span>(<span class="params">foo, length</span>) </span>&#123;</div><div class="line">  <span class="keyword">with</span> (foo) &#123;</div><div class="line">    <span class="built_in">console</span>.log(length)</div><div class="line">  &#125;</div><div class="line">&#125;</div><div class="line">f([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>], <span class="number">222</span>)   <span class="comment">// 3</span></div></pre></td></tr></table></figure>
+<h2 id="eval"><a href="#eval" class="headerlink" title="eval"></a><code>eval</code></h2><p><code>eval</code> 的问题不在于可以动态执行代码，这种能力无论如何也不能算是语言的缺陷。</p>
+<h3 id="Scope"><a href="#Scope" class="headerlink" title="Scope"></a>Scope</h3><p>它的第一个坑在于传给 eval 作为参数的代码段能够接触到当前语句所在的闭包。</p>
+<p>而用 <code>new Function</code> 动态执行的代码就不会有这个问题，因为 <code>new Function</code> 所生成的函数是确保执行在最外层作用域下的（<a href="http://perfectionkills.com/global-eval-what-are-the-options/#new_function" target="_blank" rel="external">严格来说标准里不是这样定义的，但实际效果基本可以看作等同，除了 <code>new Function</code> 中可以获取到 <code>arguments</code> 对象</a>）。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">function</span> <span class="title">test1</span>(<span class="params"></span>) </span>&#123;</div><div class="line">    <span class="keyword">var</span> a = <span class="number">11</span></div><div class="line">    <span class="built_in">eval</span>(<span class="string">'(a = 22)'</span>)</div><div class="line">    <span class="built_in">console</span>.log(a)      <span class="comment">// 22</span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">function</span> <span class="title">test2</span>(<span class="params"></span>) </span>&#123;</div><div class="line">    <span class="keyword">var</span> a = <span class="number">11</span></div><div class="line">    <span class="keyword">new</span> <span class="built_in">Function</span>(<span class="string">'return (a = 22)'</span>)()</div><div class="line">    <span class="built_in">console</span>.log(a)      <span class="comment">// 11</span></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h3 id="直接调用-vs-间接调用（Direct-Call-vs-Indirect-Call）"><a href="#直接调用-vs-间接调用（Direct-Call-vs-Indirect-Call）" class="headerlink" title="直接调用 vs 间接调用（Direct Call vs Indirect Call）"></a>直接调用 vs 间接调用（Direct Call vs Indirect Call）</h3><p>第二个坑是直接调用 <code>eval</code> 和间接调用的区别。</p>
+<p>事实上，但是「直接调用」的概念就足以让人迷糊了。</p>
+<p>首先，<a href="http://es5.github.io/#x15.1.2" target="_blank" rel="external"><code>eval</code> 是全局对象上的一个成员函数</a>；</p>
+<p>但是，<a href="https://esdiscuss.org/topic/double-checking-if-window-eval-is-an-indirect-call-to-eval#content-1" target="_blank" rel="external"><code>window.eval()</code> 这样的调用 <strong>不算是</strong> 直接调用，因为这个调用的 base 是全局对象而不是一个 “environment record”</a>。</p>
+<p>接下来的就是历史问题了。</p>
+<ul>
+<li>在 ES1 时代，<code>eval</code> 调用并没有直接和间接的区分；</li>
+<li>然后在 ES2 中，加入了直接调用（direct call）的概念。根据 <a href="http://dmitrysoshnikov.com/ecmascript/es5-chapter-2-strict-mode/#indirect-eval-call" target="_blank" rel="external">Dmitry Soshnikov 后来的说法</a>，区分这两种调用可能是处于安全考虑。此时唯一合法的 <code>eval</code> 使用方式是 <strong>直接调用</strong>，如果 <code>eval</code> 被间接调用了或者被赋值给其他变量了，JavaScript 引擎 <strong>可以选择</strong> 报一个 Runtime Error（<a href="http://www.ecma-international.org/publications/files/ECMA-ST-ARCH/ECMA-262,%202nd%20edition,%20August%201998.pdf" target="_blank" rel="external">ECMA-262 2nd Edition</a>, p.63）。</li>
+<li>但是浏览器厂商们在试图实现这个特性时，发现这会让一些旧网站不兼容。</li>
+<li>考虑到这毕竟是可选的特性，他们最后就选择了不报错，转而让所有间接调用的 <code>eval</code> 都在全局作用域下执行。<br>这样一来，既保持了对旧网站的兼容性，也保证了一定程度的安全性。</li>
+<li><a href="https://mail.mozilla.org/pipermail/es-discuss/2011-February/012852.html" target="_blank" rel="external">到了 ES5 时期，标准制定者们希望能够和当前约定俗成的实现保持一直并规范化，所以去掉了之前标准里的可选实现，转而规定了间接调用 <code>eval</code> 时的行为</a></li>
+</ul>
+<p>直接调用和间接调用最大的区别在于他们的作用域不同：<br><figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">function</span> <span class="title">test</span>(<span class="params"></span>) </span>&#123;</div><div class="line">  <span class="keyword">var</span> x = <span class="number">2</span>, y = <span class="number">4</span></div><div class="line">  <span class="built_in">console</span>.log(<span class="built_in">eval</span>(<span class="string">"x + y"</span>))    <span class="comment">// Direct call, uses local scope, result is 6</span></div><div class="line">  <span class="keyword">var</span> geval = <span class="built_in">eval</span>;</div><div class="line">  <span class="built_in">console</span>.log(<span class="built_in">eval</span>(<span class="string">"x + y"</span>))   <span class="comment">// Indirect call, uses global scope, throws ReferenceError because `x` is undefined</span></div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>间接调用 <code>eval</code> 最大的用处（可能也是唯一的实际用处）是在任意地方获取到全局对象（然而 Function(‘return this’)() 也能做到这一点）：<br><figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 即使是在严格模式下也能起作用</span></div><div class="line"><span class="keyword">var</span> global = (<span class="string">"indirect"</span>, <span class="built_in">eval</span>)(<span class="string">"this"</span>);</div></pre></td></tr></table></figure></p>
+<p>未来，如果 Jordan Harband 的 <a href="https://github.com/tc39/proposal-global" target="_blank" rel="external"><code>System.global</code> 提案</a>能进入到标准的话，这最后一点用处也用不到了……</p>
+<h2 id="非严格模式下，赋值给未声明的变量会导致产生一个新的全局变量"><a href="#非严格模式下，赋值给未声明的变量会导致产生一个新的全局变量" class="headerlink" title="非严格模式下，赋值给未声明的变量会导致产生一个新的全局变量"></a>非严格模式下，赋值给未声明的变量会导致产生一个新的全局变量</h2><h2 id="Value-Properties-of-the-Global-Object"><a href="#Value-Properties-of-the-Global-Object" class="headerlink" title="Value Properties of the Global Object"></a>Value Properties of the Global Object</h2><p>我们平时用到的 <code>NaN</code>, <code>Infinity</code>, <code>undefined</code> 并不是作为 primitive value 被使用（而 <code>null</code> 是 primitive value），<a href="http://es5.github.io/#x15.1.1" target="_blank" rel="external">而是定义在全局对象上的属性名</a>。</p>
+<p>在 ES5 之前，这几个属性甚至可以被覆盖，直到 ES5 之后它们才被改成 non-configurable、non-writable。</p>
+<p>然而，因为这几个属性名都不是 JavaScript 的保留字，所以可以被用来当做变量名使用。即使全局变量上的这几个属性不可被更改，我们仍然可以在自己的作用域里面对这几个名字进行覆盖。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// logs "foo string"</span></div><div class="line">(<span class="function"><span class="keyword">function</span>(<span class="params"></span>)</span>&#123; <span class="keyword">var</span> <span class="literal">undefined</span> = <span class="string">'foo'</span>; <span class="built_in">console</span>.log(<span class="literal">undefined</span>, <span class="keyword">typeof</span> <span class="literal">undefined</span>); &#125;)();</div></pre></td></tr></table></figure>
+<h2 id="Stateful-RegExps"><a href="#Stateful-RegExps" class="headerlink" title="Stateful RegExps"></a>Stateful RegExps</h2><p>JavaScript 中，正则对象上的函数是有状态的：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">const</span> re = <span class="regexp">/foo/g</span></div><div class="line"><span class="built_in">console</span>.log(re.test(<span class="string">'foo bar'</span>)) <span class="comment">// true</span></div><div class="line"><span class="built_in">console</span>.log(re.test(<span class="string">'foo bar'</span>)) <span class="comment">// false</span></div></pre></td></tr></table></figure>
+<p>这使得这些方法难以调试、无法做到线程安全。</p>
+<p>Brendan Eich 的说法是<a href="https://twitter.com/BrendanEich/status/231066800304046080" target="_blank" rel="external">这些方法来自于 90 年代的 Perl 4，那时候并没有想到这么多</a></p>
+<h2 id="weird-syntax-of-import"><a href="#weird-syntax-of-import" class="headerlink" title="weird syntax of import"></a>weird syntax of <code>import</code></h2><p>现在的语法是 <code>import x from &#39;y&#39;</code>，但是改成 <code>from y import x</code> 的话，会更自然、更方便触发 IDE / 编辑器的自动补全。</p>
+<p>Brendan Eich 也在 <a href="https://esdiscuss.org/topic/2-questions-about-es6-module-loaders#content-3" target="_blank" rel="external">ESDiscuss 的一篇帖子</a>中对此表达过后悔之情。</p>
+<p>另外，尽管很多人认为 ES2015 的模块系统是借鉴了 python，但事实上，根据 ES2015 模块系统的设计者 <a href="http://calculist.org/blog/2012/06/29/static-module-resolution/" target="_blank" rel="external">Dave Herman 的说法</a>，这个模块系统的理念主要是参考了 <a href="https://racket-lang.org/" target="_blank" rel="external">Racket</a>，跟 python 半毛钱关系都没有（除了最后定下来的语法恰好有点相似）。</p>
+<h2 id="Array-constructor-inconsistency"><a href="#Array-constructor-inconsistency" class="headerlink" title="Array constructor inconsistency"></a>Array constructor inconsistency</h2><p>这是 API 设计的失误。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// &lt;https://github.com/DavidBruant/ECMAScript-regrets/issues/21&gt;</span></div><div class="line"><span class="built_in">Array</span>(<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>); <span class="comment">// [1, 2, 3]</span></div><div class="line"><span class="built_in">Array</span>(<span class="number">2</span>, <span class="number">3</span>); <span class="comment">// [2, 3]</span></div><div class="line"><span class="built_in">Array</span>(<span class="number">3</span>); <span class="comment">// [,,] WAT</span></div></pre></td></tr></table></figure>
+<h2 id="Primitive-type-wrappers"><a href="#Primitive-type-wrappers" class="headerlink" title="Primitive type wrappers"></a>Primitive type wrappers</h2><p>JavaScript 中的 primitive type wrappers (Boolean / Number / String…）绝对是臭名昭著，各种合理或不合理的比较规则和类型转换能把人折腾疯，这里就不详述了（<del>其实是太懒了写不动了</del>。</p>
+<p><a href="https://brendaneich.com/2005/11/js2-design-notes/" target="_blank" rel="external">Brendan Eich 在 JS2/ES4 中曾经试图用激进的强类型方案一劳永逸地解决掉这个问题</a>，不过后来 ES4 不了了之了，这个提案也就被搁置在一边了。</p>
+<h2 id="Date-Object"><a href="#Date-Object" class="headerlink" title="Date Object"></a>Date Object</h2><p>JavaScript 里的 <code>Date</code> 对象是直接抄的 Java <code>Date</code> 类，所以这些问题其实都继承自 Java（其实不少方法在 Java 里都已经 deprecated 了，只是 JavaScript 演进了这么多年，一直没有加进 <code>Date</code> 的替代品）。</p>
+<h3 id="Date-getMonth"><a href="#Date-getMonth" class="headerlink" title="Date.getMonth()"></a><code>Date.getMonth()</code></h3><p><code>Date.getMonth()</code> 的返回值是从 0 开始计的。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">const</span> d = <span class="keyword">new</span> <span class="built_in">Date</span>(<span class="string">'2016-07-14'</span>)</div><div class="line">d.getDate()     <span class="comment">// 14</span></div><div class="line">d.getYear()     <span class="comment">// 116 (2016 - 1900)</span></div><div class="line">d.getMonth()    <span class="comment">// 6</span></div></pre></td></tr></table></figure>
+<h3 id="Date-comparison"><a href="#Date-comparison" class="headerlink" title="Date comparison"></a><code>Date</code> comparison</h3><figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line">$ node</div><div class="line">&gt; d1 = <span class="keyword">new</span> <span class="built_in">Date</span>(<span class="string">'2016-01-01'</span>)</div><div class="line">Fri Jan <span class="number">01</span> <span class="number">2016</span> <span class="number">08</span>:<span class="number">00</span>:<span class="number">00</span> GMT+<span class="number">0800</span> (CST)</div><div class="line">&gt; d2 = <span class="keyword">new</span> <span class="built_in">Date</span>(<span class="string">'2016-01-01'</span>)</div><div class="line">Fri Jan <span class="number">01</span> <span class="number">2016</span> <span class="number">08</span>:<span class="number">00</span>:<span class="number">00</span> GMT+<span class="number">0800</span> (CST)</div><div class="line">&gt; d1 &lt;= d2</div><div class="line"><span class="literal">true</span></div><div class="line">&gt; d1 &gt;= d2</div><div class="line"><span class="literal">true</span></div><div class="line">&gt; d1 == d2</div><div class="line"><span class="literal">false</span></div><div class="line">&gt; d1 === d2</div><div class="line"><span class="literal">false</span></div></pre></td></tr></table></figure>
+<p>原因是抽象关系比较算法中，左右值在一定情况下会先 ToNumber，而抽象相等比较时则不会做转换，所以造成了这种情况。</p>
+<p>具体可以看<a href="http://www.atatech.org/articles/49067" target="_blank" rel="external">这篇 ATA 文章</a></p>
+<h2 id="prototype"><a href="#prototype" class="headerlink" title="prototype"></a><code>prototype</code></h2><p><code>prototype</code> 有两个槽点。</p>
+<p>第一点是它的命名不合理。</p>
+<blockquote>
+<p>There are only two hard things in Computer Science: cache invalidation and naming things<br>– Phil Karlton</p>
+</blockquote>
+<p>JavaScript 中的各种词不达意的命名已经让人无力吐槽了……</p>
+<p>作为对象属性的 <code>prototype</code>，其实根本就不是我们讨论原型继承机制时说的「原型」概念。<br><a href="http://johnkpaul.github.io/presentations/empirejs/javascript-bad-parts/#/11" target="_blank" rel="external"><code>fallbackOfObjectsCreatedWithNew</code> would be a better name.</a></p>
+<p>而对象真正意义上的原型，在 ES5 引入 <code>Object.getPrototypeOf()</code> 方法之前，我们并没有常规的方法可以获取。</p>
+<p>不过很多浏览器都实现了非标准的 <code>__proto__</code>（IE 除外），在 ES2015 中，这一扩展属性也得以标准化了。</p>
+<h2 id="Object-destructuring-syntax"><a href="#Object-destructuring-syntax" class="headerlink" title="Object destructuring syntax"></a>Object destructuring syntax</h2><p>解构赋值时给变量起别名的语法有点让人费解：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// &lt;https://twitter.com/Louis_Remi/status/748816910683283456&gt;</span></div><div class="line"><span class="comment">// 这里解构出来的新变量是 y，它等价于 z.x</span></div><div class="line"><span class="comment">// 冒号可以读作 'as'，方便记忆</span></div><div class="line"><span class="keyword">let</span> &#123; <span class="attr">x</span>: y &#125; = z</div></pre></td></tr></table></figure>
+<p>虽然这并不能算作是设计失误（毕竟很多其他语言也这么做），但毕竟不算直观。</p>
+<h2 id="其他参考文献"><a href="#其他参考文献" class="headerlink" title="其他参考文献"></a>其他参考文献</h2><p><a href="https://esdiscuss.org/topic/10-biggest-js-pitfalls#content-5" target="_blank" rel="external">https://esdiscuss.org/topic/10-biggest-js-pitfalls#content-5</a><br><a href="https://esdiscuss.org/topic/excluding-features-from-sloppy-mode" target="_blank" rel="external">https://esdiscuss.org/topic/excluding-features-from-sloppy-mode</a><br><a href="http://wtfjs.com/" target="_blank" rel="external">http://wtfjs.com/</a><br><a href="http://bonsaiden.github.io/JavaScript-Garden/" target="_blank" rel="external">http://bonsaiden.github.io/JavaScript-Garden/</a><br><a href="https://www.nczonline.net/blog/2012/07/24/thoughts-on-ecmascript-6-and-new-syntax/" target="_blank" rel="external">https://www.nczonline.net/blog/2012/07/24/thoughts-on-ecmascript-6-and-new-syntax/</a></p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;typeof-null-39-object-39&quot;&gt;&lt;a href=&quot;#typeof-null-39-object-39&quot; class=&quot;headerlink&quot; title=&quot;typeof null === &amp;#39;object&amp;#39;&quot;&gt;&lt;/a&gt;&lt;code&gt;typeof null === &amp;#39;object&amp;#39;&lt;/code&gt;&lt;/h2&gt;&lt;p&gt;这是一个众所周知的失误。这个问题其实源于&lt;a href=&quot;http://www.2ality.com/2013/10/typeof-null.html&quot;&gt;初版 JavaScript 实现中的一个 bug&lt;/a&gt;。&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;注：上述文章引用的代码其实已经不算是最初版本的实现了，但 Brendan Eich 自己也在 Twitter 上表示，这是一个 &lt;a href=&quot;https://twitter.com/BrendanEich/status/617450289889607681&quot;&gt;abstraction leak&lt;/a&gt;，可以理解为变相承认这是代码 bug。&lt;/p&gt;
+&lt;/blockquote&gt;
+    
+    </summary>
+    
+    
+      <category term="javascript, esnext, history" scheme="https://sodatea.github.io/tags/javascript-esnext-history/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>ESNext 代码风格指南</title>
+    <link href="https://sodatea.github.io/2016/05/12/esnext-coding-style-guide/"/>
+    <id>https://sodatea.github.io/2016/05/12/esnext-coding-style-guide/</id>
+    <published>2016-05-12T09:20:37.000Z</published>
+    <updated>2016-05-12T09:22:22.000Z</updated>
+    
+    <content type="html"><![CDATA[<p>上周在团队内部做的分享。Slides 先传上来，文字内容以后有空再补。</p>
+<a id="more"></a>
+<iframe src="https://docs.google.com/presentation/d/1pdQb7A-iVAX8Ik6rsqPzHfjs9kkdCQ1E5o69R39iNuc/embed?start=false&loop=false&delayms=3000" frameborder="0" width="480" height="299" allowfullscreen="true" mozallowfullscreen="true" webkitallowfullscreen="true"></iframe>
+
+
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;p&gt;上周在团队内部做的分享。Slides 先传上来，文字内容以后有空再补。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="javascript, esnext, coding style" scheme="https://sodatea.github.io/tags/javascript-esnext-coding-style/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>关于正确遵守正版软件的使用条款的几个 tips</title>
+    <link href="https://sodatea.github.io/2016/01/08/copyright-softwares-in-china/"/>
+    <id>https://sodatea.github.io/2016/01/08/copyright-softwares-in-china/</id>
+    <published>2016-01-08T04:50:14.000Z</published>
+    <updated>2016-04-19T09:36:43.000Z</updated>
+    
+    <content type="html"><![CDATA[<p>在官方渠道付费购买的软件不一定就是正版，要遵守使用条款才是。<br><a id="more"></a></p>
+<h2 id="Adobe-Creative-Cloud-Membership"><a href="#Adobe-Creative-Cloud-Membership" class="headerlink" title="Adobe Creative Cloud Membership"></a>Adobe Creative Cloud Membership</h2><p>这个官方并没有在国内售卖，必须在国外购买和激活。根据两条官方解答：<a href="https://forums.adobe.com/thread/1023313" target="_blank" rel="external">using the cloud in a unsupported country</a> 以及 <a href="https://forums.adobe.com/message/4740738#4740738" target="_blank" rel="external">License Status Check in Non-Subscription Country</a>，这是不违反授权条款的。</p>
+<p>不过，根据<a href="http://cn.engadget.com/2016/01/13/adobe-creative-cloud-china-planning/" target="_blank" rel="external">媒体报道</a>，Adobe 官方今年终于计划把 Adobe CC 带到中国，虽然没有说确定的期限，但至少是有个盼头了。</p>
+<h2 id="Office-365-家庭版"><a href="#Office-365-家庭版" class="headerlink" title="Office 365 家庭版"></a>Office 365 家庭版</h2><p>官方对家庭版的说明是「家人和朋友」合用，所以和网友团购家庭版是合乎条款的，和你一起分享授权的并不一定要是家人才行。</p>
+<p><a href="https://blogs.office.com/2013/02/05/top-office-365-questions-answered/" target="_blank" rel="external">不可以用于工作</a>。</p>
+<h2 id="JetBrain-旗下工具的个人版"><a href="#JetBrain-旗下工具的个人版" class="headerlink" title="JetBrain 旗下工具的个人版"></a>JetBrain 旗下工具的个人版</h2><p>根据 <a href="https://www.v2ex.com/t/97680#r_929218" target="_blank" rel="external">V2EX 网友与官方客服的通信</a>，<strong>自己出钱</strong>购买了个人版然后在公司做商业开发是符合使用条款的，但只要公司直接或间接地为此付出了哪怕一分钱，都是违反协议的。</p>
+<h2 id="苹果产品的教育优惠"><a href="#苹果产品的教育优惠" class="headerlink" title="苹果产品的教育优惠"></a>苹果产品的教育优惠</h2><p>根据<a href="http://www.apple.com/cn-k12/shop/browse/open/salespolicies/edu" target="_blank" rel="external">苹果教育商店的销售条款</a>，只有教育顾客有权以教育优惠购买商品，但并未限制教育顾客将这些产品转送（但初始购买目的当为教育目的）。在实践上一般无法区分购买目的是否为教育目的，但为了在理论上符合教育优惠的条件，顾客最好先自行使用一段时间后才可转送他人。</p>
+<p>关于是否可以用于工作：购买目的当为教育目的，但毕业后仍可在工作场合使用。</p>
+<h2 id="校园先锋网站上的微软和-Adobe-产品"><a href="#校园先锋网站上的微软和-Adobe-产品" class="headerlink" title="校园先锋网站上的微软和 Adobe 产品"></a><a href="http://help.shop.edu.cn/" target="_blank" rel="external">校园先锋网站</a>上的微软和 Adobe 产品</h2><p>都是终身授权，毕业后可继续使用，但部分不适用于商业用途。<br>但是麻烦的是，不同途径购买的软件对于教育授权的解释也有矛盾之处，我不清楚是不同经销商授权协议不同还是网站工作人员搞错了还是他们根本就没把授权放在心上。在 Adobe 的<a href="http://helpx.adobe.com/cn/x-productkb/policy-pricing/education-faq.html" target="_blank" rel="external">官方 FAQ</a>上，教育授权可被用于商业用途，但如上所述，校园先锋的 FAQ 又是相反的说法。</p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;p&gt;在官方渠道付费购买的软件不一定就是正版，要遵守使用条款才是。&lt;br&gt;
+    
+    </summary>
+    
+    
+      <category term="copyright" scheme="https://sodatea.github.io/tags/copyright/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>GFW 封锁方式以及翻墙手段汇总</title>
+    <link href="https://sodatea.github.io/2015/12/23/all-i-know-about-the-wall/"/>
+    <id>https://sodatea.github.io/2015/12/23/all-i-know-about-the-wall/</id>
+    <published>2015-12-23T09:19:29.000Z</published>
+    <updated>2017-01-03T11:34:30.000Z</updated>
+    
+    <content type="html"><![CDATA[<h2 id="GFW-的封锁方法"><a href="#GFW-的封锁方法" class="headerlink" title="GFW 的封锁方法"></a>GFW 的封锁方法</h2><ol>
+<li>国内 DNS 服务器的缓存污染</li>
+<li>发往国外的 DNS 解析请求的拦截或篡改</li>
+<li>IP 黑名单</li>
+<li>端口封锁，针对 OpenVPN，SSH，shadowsocks 等，有用到 DPI，多次换端口后封 IP</li>
+<li>关键字封锁，利用深度包检测（DPI），是主要方法。可用全站 https 应对，不过 GFW 因为无法识别 https，所以会针对所有 https 连接进行随机的中断</li>
+</ol>
+<a id="more"></a>
+<p>关于 GFW 的更多技术细节可以参见本文的参考链接</p>
+<h2 id="GFW-的设备"><a href="#GFW-的设备" class="headerlink" title="GFW 的设备"></a>GFW 的设备</h2><p>大量硬件设备来自 Cisco</p>
+<ol>
+<li>入侵检测设备，在北京、上海、广州搭在总交换中心上做旁路监听</li>
+<li>动态路由设备，放在 ISP 处</li>
+</ol>
+<h2 id="翻墙方式"><a href="#翻墙方式" class="headerlink" title="翻墙方式"></a>翻墙方式</h2><ol>
+<li>hosts，只能翻部分被 DNS 投毒的网站，而且随着 Google IP 被封禁得越来越多，已经很难翻了</li>
+<li>第三方 DNS，作用同 hosts，有风险，可能被再劫持</li>
+<li>HTTP 代理，主要风险是明文传输（试过在海外 VPS 直接搭 HTTP 代理，用来上百度没问题，一打开 Google 马上被封）</li>
+<li>HTTPS 代理，比起 HTTP 代理，有了一层 SSL 加密，安全许多，但 SSL 其实并不适合用于翻墙，它并不是专用于混淆的协议，shadowsocks 作者 clowwindy 有<a href="https://gist.github.com/clowwindy/5947691" target="_blank" rel="external">一篇文章</a>详细阐述了这个观点</li>
+<li>Tor，P2P 方式，安全性高。但 GFW 会钓鱼，伪造成 Tor 客户端进入 Tor 网络（<a href="https://www.torproject.org/projects/obfsproxy.html.en" target="_blank" rel="external">obfsproxy</a> 可以应对）。本身网络传输速度不快，不好用</li>
+<li>Latern 基本同上，就个人使用体验来说，速度太慢</li>
+<li>GoAgent，基于 GAE，已经不再维护</li>
+<li><a href="https://github.com/phuslu/goproxy" target="_blank" rel="external">GoProxy</a>，GoAgent 的继任者，用于自己部署在 VPS 上</li>
+<li>SSH，虽然传输安全，但握手阶段特征太明显，会被监控流量和连接数，所以基本只能用一小会儿，一般需要数小时重连一次。2012 年 GFW 加入 DPI 功能之后被封锁得更为严重了，一旦有 HTTP 流量传输就会被墙</li>
+<li>VPN，工作在数据链路层，流量特征非常明显，出于商业上的考虑（大量在华跨国公司需要用到）所以才还能存活。但是自建的话，L2TP/PP2P/OpenVPN 基本没办法存活多久，只有 Cisco AnyConnect （服务端用开源的 ocserv）还可以用</li>
+<li><a href="https://github.com/shadowsocks" target="_blank" rel="external">Shadowsocks</a>，这个名气够大了，不详述。如有需要，服务端建议部署<a href="https://github.com/shadowsocks/shadowsocks-libev" target="_blank" rel="external">shadowsocks-libev</a>，相比其他语言的实现，这个版本开发更为活跃</li>
+<li><a href="https://github.com/Long-live-shadowsocks/ShadowVPN" target="_blank" rel="external">ShadowVPN</a>, <a href="https://github.com/bigeagle/gohop" target="_blank" rel="external">GoHop</a>, <a href="https://www.softether.org/" target="_blank" rel="external">SoftEther VPN</a>，都是具有较为强大加密/混淆功能的 VPN 实现，其中 ShadowVPN 因为作者 <a href="https://github.com/clowwindy" target="_blank" rel="external">clowwindy</a> 被请喝茶而删除项目代码，GoHop 功能强大但暂时只支持 Linux，SoftEther VPN 使用不是很方便（而且已经能被 GFW 探测到，见参考链接 13），所以目前都不是很流行</li>
+<li><a href="https://www.v2ray.com/zh_cn/index.html" target="_blank" rel="external">V2Ray</a>，支持多种代理协议的代理软件包，功能强大</li>
+<li><a href="https://github.com/UnsignedInt8/LightSword" target="_blank" rel="external">LightSword</a>，基于 Node.js 的 SOCKS5 代理 / Apple NE 服务器，有 Linux / <a href="https://itunes.apple.com/cn/app/level.4/id1082115711?ls=1&amp;mt=8" target="_blank" rel="external">iOS</a> / <a href="https://itunes.apple.com/cn/app/level.5/id1088733081?ls=1&amp;mt=12" target="_blank" rel="external">OS X</a> 客户端，其协议参考了 shadowsocks，性能一般，iOS 客户端也只支持全局代理，但聊胜于无</li>
+<li>IPv6，据说 GFW 暂时还未能有效封禁 IPv6 地址，所以在教育网里还能通过 IPv6 访问 Google/Facebook 等。不过这个应该只是暂时的</li>
+</ol>
+<h2 id="自建翻墙服务指南"><a href="#自建翻墙服务指南" class="headerlink" title="自建翻墙服务指南"></a>自建翻墙服务指南</h2><ol>
+<li><p>翻墙路由器，刷 OpenWrt<br> 用于自己在家上网。</p>
+<ol>
+<li>VPN / shadowsocks + <a href="https://github.com/fivesheep/chnroutes" target="_blank" rel="external">chnroutes</a> / <a href="https://github.com/cyfdecyf/cow" target="_blank" rel="external">cow</a> / <a href="https://github.com/renzhn/MEOW" target="_blank" rel="external">meow</a> 自动分流国内外 IP</li>
+<li><a href="http://wiki.openwrt.org/doc/howto/dhcp.dnsmasq" target="_blank" rel="external">Dnsmasq</a> + <a href="http://members.home.nl/p.a.rombouts/pdnsd/" target="_blank" rel="external">pdnsd</a> / <a href="https://github.com/shadowsocks/ChinaDNS" target="_blank" rel="external">ChinaDNS</a></li>
+<li>如果用了 Airport Extreme 之类的无法刷系统的路由器的话，可以接两层路由器，第一层用刷过 OpenWrt 的路由先翻一遍墙</li>
+</ol>
+</li>
+<li><p>翻墙（HTTP）代理<br> 在命令行终端里只能通过配置 <code>http_proxy</code>/<code>https_proxy</code> 变量来翻墙，所以需要一个翻墙代理。而且下述 PAC 文件、运营商描述文件都需要有一个代理作为基础。</p>
+<ol>
+<li>HTTP 代理只能用国内服务器中转，直接部署在国外肯定被墙</li>
+<li>建议在海外服务器部署 shadowsocks 服务端，国内服务器部署 shadowsocks 客户端</li>
+<li>shdaowsocks 代理转 http 代理可用 privoxy / polipo / cow / meow</li>
+<li>privoxy / polipo 生成的代理是纯 HTTP 代理，cow / meow 则会自动学习已翻墙/未翻墙网站并更新列表、生成 PAC 等。但是 cow 因为默认认为网站未被墙，所以很多网站会尝试多次连接才能使用代理，速度有一定影响；而 meow 是白名单模式，可能会影响部分国内网站的加载速度</li>
+<li>Surge for Mac 作为二级代理也非常好用</li>
+</ol>
+</li>
+<li><p>提供远程 PAC 文件<br> Windows / Mac / Linux，以及 iOS / Android 5+ 在 WiFi 网络下都可以配置 PAC 代理，Android 4.x 可以用 SmartProxy 这款 App</p>
+<ol>
+<li>如果没什么特殊需求，最简单的是<a href="http://codelife.me/blog/2013/04/06/convert-gfwlist-to-pac/" target="_blank" rel="external">利用 gfwlist 生成</a>，然后开个静态文件的 http 服务以便客户端访问</li>
+<li>不过更优的方法是<a href="https://github.com/cyfdecyf/cow#user-content-详细使用说明" target="_blank" rel="external">使用 cow 生成的 PAC</a></li>
+</ol>
+</li>
+<li><p><a href="https://velaciela.ms/use_apn_connect" target="_blank" rel="external">制作运营商描述文件</a><br> 用于在 2G/3G/4G 下翻墙。不过不是太建议这个方法，根据个人经验，不论设置文件怎么写，总有些时候会出现莫名其妙的问题，到时候就只能删掉描述文件，在需要翻墙时再加回来，很是麻烦<br>而且对于使用了 HttpDNS 服务的各大 App 都无法兼容，包括但不仅限于微信朋友圈小视频、阿里旅行、滴滴出行地图、虾米、淘宝电影选座、网易云音乐等</p>
+</li>
+<li><p>AnyConnect<br> 未越狱 iOS 设备，所有<strong>免费</strong>方案中，AnyConnect 是最方便的</p>
+<ol>
+<li>服务端使用 ocserv</li>
+<li>AnyConnect 用路由表做分流，所以不太精确</li>
+<li>ocserv 默认限制路由表最长为 64 条，但其实客户端最长可接受 200 条，所以可以通过修改源代码后编译的方式调整这个上限，参看<a href="https://www.v2ex.com/t/136431" target="_blank" rel="external">这个帖子</a></li>
+<li><a href="https://github.com/travislee8964/Ocserv-install-script-for-CentOS-RHEL-7" target="_blank" rel="external">这里</a>有个 CentOS &amp; RHEL7 的安装脚本（已调整过路由表上限），即使不用这个脚本而自行安装，也可以参考其中给出的路由表</li>
+</ol>
+</li>
+<li><p><a href="http://nssurge.com/" target="_blank" rel="external">Surge</a><br>iOS / OS X 翻墙首选，支持 http、shadowsocks 代理，支持类 PAC 的配置，支持路由表，支持根据 IP 地址分流，在 OS X 上作为二级 HTTP 代理使用，同时也提供 SOCKS 代理，另外还支持抓包，可以当做网络调试工具使用，功能非常非常强大<br>虽然配置麻烦，但是配置好之后可以说是一劳永逸</p>
+<p>不过 iOS、Mac 版各 $49.99 起的价格还是有点贵</p>
+</li>
+<li><p><a href="https://itunes.apple.com/cn/app/potatso-zhi-chi-zi-ding-yi/id1070901416?mt=8" target="_blank" rel="external">Potatso</a></p>
+<p> Surge for iOS 的替代品，价格比 Surge 便宜得多，且<a href="https://github.com/shadowsocks/Potatso" target="_blank" rel="external">开源</a></p>
+<p> 虽然功能还不如 Surge 丰富，但是基本还是够用的，不想花太多钱在翻墙上的话可以考虑</p>
+</li>
+<li><p>免费 shadowsocks 客户端</p>
+<ul>
+<li><a href="https://github.com/shadowsocks/shadowsocks-android/releases" target="_blank" rel="external">shadowsocks-android</a></li>
+<li><a href="https://www.wingy.site/appstore.html" target="_blank" rel="external">Wingy</a><br>  iOS 下的免费 shadowsocks 客户端，没有什么定制化需求的话用这个就够了</li>
+<li><a href="https://github.com/shadowsocks/ShadowsocksX-NG" target="_blank" rel="external">ShadowsocksX-NG</a><br>  Mac 客户端</li>
+<li><a href="https://github.com/shadowsocks/shadowsocks-windows" target="_blank" rel="external">Shadowsocks for Windows</a></li>
+<li><a href="https://github.com/shadowsocks/shadowsocks-qt5" target="_blank" rel="external">Shadowsocks-Qt5</a> Windows / Linux 客户端</li>
+</ul>
+</li>
+<li><p>国际网络线路优化</p>
+<ol>
+<li>如果有国内服务器，可以直接用前述 shadowsocks 转 http 代理的方法，也可以直接设置 haproxy 转发 shadowsocks 代理</li>
+<li>如果不想买国内服务器的话，可以使用 <a href="https://vnet.link/?rc=18139" target="_blank" rel="external">微林的 vxTrans 服务</a> 将代理进行端口转发，流量转发至电信 CN2 精品网，解决直连海外 VPS 太慢的问题</li>
+</ol>
+</li>
+<li><p>TCP 加速（防丢包）</p>
+<ol>
+<li><p><a href="https://github.com/snooda/net-speeder" target="_blank" rel="external">net-speeder</a>，开源，简单粗暴地通过两倍发包来防止丢包，对丢包严重的网络有一定改善作用，不过有一些缺点：</p>
+<ol>
+<li>双倍发包会造成流量翻倍</li>
+<li>net-speeder 会造成 pptpd 等不支持双倍发包的网络软件无法正常使用</li>
+<li>对小文件加速效果不明显</li>
+<li><p>这种 TCP 优化机制一直存在争议，因为它实际实际上加剧了网络的拥堵，浪费掉了大量没必要的带宽</p>
+<p>所以<strong>不建议使用</strong></p>
+</li>
+</ol>
+</li>
+<li><p><a href="http://serverspeeder.com/" target="_blank" rel="external">锐速</a>，比较老牌的 TCP 加速服务，闭源，比 net-speeder 智能，但不支持所有 VPS，闭源还要求 root 权限也让人有点不放心。而且，仍然会增加流量消耗，仍然被认为是不道德的，参见 shadowsocks 作者 clowwindy 在 V2EX 上的<a href="http://v2ex.com/t/164883?p=1#r_1742730" target="_blank" rel="external">评论</a></p>
+</li>
+<li><a href="https://www.zhihu.com/question/53559433" target="_blank" rel="external">TCP BBR</a>，Linux Kernel 4.9+ 支持，效果还是不错的，公平性暂不了解</li>
+<li><a href="https://github.com/xtaci/kcptun" target="_blank" rel="external">kcptun</a></li>
+</ol>
+</li>
+</ol>
+<h2 id="收费翻墙服务（不建议使用免费服务）"><a href="#收费翻墙服务（不建议使用免费服务）" class="headerlink" title="收费翻墙服务（不建议使用免费服务）"></a>收费翻墙服务（<strong>不建议使用免费服务</strong>）</h2><p>鉴于目前的网络环境，本文不再公开推荐任何付费翻墙服务</p>
+<!--
+
+1. HTTP 代理以及 AnyConnect
+    1. [轻云](http://theqingyun.info/r/2g3wq0)
+       使用两年半，换过两次域名，另外还挂过两次，不过恢复时间较快。如果发现网站上不去了可以发任意内容邮件到 <theqingyun@gmail.com> 获取最新地址
+    2. [土行孙](http://itxs.co/s/b6098a9h)
+       使用一年，挂过两次。**文档极为完善**，对于不怎么翻墙、不熟悉翻墙工具的小白用户十分友好，另外学生凭校园邮箱有七折优惠
+    3. [熊猫翻滚](https://ezcat.xyz/)
+       价格略贵，有[微博客服](http://weibo.com/pandafanorg)，一般没什么问题，但小坑不断，典型的互联网服务。最近半年挂的次数不少……从微博时间线上就可以看出来
+2. VPN
+    1. [云梯 VPN](https://www.ytvpn.com/)
+    2. [Astrill](https://www.astrill.com/)，目前似乎速度已经不怎么样了，不推荐
+    3. [VyprVPN](https://www.goldenfrog.com/vyprvpn)
+3. [EurekaVPT](https://eurekavpt.com/)
+    没用过，口碑不错，价格略贵，需要邀请
+
+-->
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ol>
+<li><a href="http://www.chinagfw.org/2009/08/gfw_30.html" target="_blank" rel="external">阅后即焚：“GFW”</a></li>
+<li><a href="http://teahour.fm/2013/07/09/gfw-and-vpncloud.html" target="_blank" rel="external">GFW 技术研究和云梯产品故事</a></li>
+<li><a href="http://gfwrev.blogspot.jp/2009/10/gfw.html" target="_blank" rel="external">深入理解 GFW：总论</a></li>
+<li><a href="http://gfwrev.blogspot.fr/2009/11/gfw_05.html" target="_blank" rel="external">深入理解 GFW：路由扩散技术</a></li>
+<li><a href="http://gfwrev.blogspot.fr/2009/11/gfw.html" target="_blank" rel="external">GFW 钓鱼计划</a></li>
+<li><a href="http://gfwrev.blogspot.fr/2010/02/gfw.html" target="_blank" rel="external">深入理解 GFW：内部结构</a></li>
+<li><a href="http://gfwrev.blogspot.fr/2010/03/gfw.html" target="_blank" rel="external">深入理解 GFW：结论</a></li>
+<li><a href="http://gfwrev.blogspot.fr/2009/11/gfw_10.html" target="_blank" rel="external">GFW 研究与诊断工具</a></li>
+<li><a href="http://m.friendfeed-media.com/4457da9004be475a669d679bec5f17120bdf3d08" target="_blank" rel="external">GFW 的工作原理及突破技术</a></li>
+<li><a href="https://raw.githubusercontent.com/shell909090/slides/master/pdf/GFW.pdf" target="_blank" rel="external">GFW 的原理和绕过</a></li>
+<li><a href="https://docs.google.com/document/d/1mmMiMYbviMxJ-DhTyIGdK7OOg581LSD1CZV4XY1OMG8/edit" target="_blank" rel="external">GFW 的详细分析及翻墙路由器（fqrouter）的原理和实现</a></li>
+<li><a href="https://www.youtube.com/watch?v=GwMr8Xl7JMQ&amp;index=128&amp;list=WL" target="_blank" rel="external">How governments have tried to block Tor</a></li>
+<li><a href="https://blog.torproject.org/blog/learning-more-about-gfws-active-probing-system" target="_blank" rel="external">Learning more about the GFW’s active probing system</a></li>
+<li><a href="https://theinitium.com/article/20150904-mainland-greatfirewall/" target="_blank" rel="external">道高一尺，牆高一丈：互聯網封鎖是如何升級的</a></li>
+<li><a href="http://cyber.law.harvard.edu/filtering/china/appendix-tech.html" target="_blank" rel="external">Empirical Analysis of Internet Filtering in China</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Golden_Shield_Project" target="_blank" rel="external">Golden Shield Project - Wikipedia, the free encyclopedia</a></li>
+<li><a href="http://xieyi64.blogspot.com/2010/12/blog-post.html" target="_blank" rel="external">“墙”的文献综述</a></li>
+</ol>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;GFW-的封锁方法&quot;&gt;&lt;a href=&quot;#GFW-的封锁方法&quot; class=&quot;headerlink&quot; title=&quot;GFW 的封锁方法&quot;&gt;&lt;/a&gt;GFW 的封锁方法&lt;/h2&gt;&lt;ol&gt;
+&lt;li&gt;国内 DNS 服务器的缓存污染&lt;/li&gt;
+&lt;li&gt;发往国外的 DNS 解析请求的拦截或篡改&lt;/li&gt;
+&lt;li&gt;IP 黑名单&lt;/li&gt;
+&lt;li&gt;端口封锁，针对 OpenVPN，SSH，shadowsocks 等，有用到 DPI，多次换端口后封 IP&lt;/li&gt;
+&lt;li&gt;关键字封锁，利用深度包检测（DPI），是主要方法。可用全站 https 应对，不过 GFW 因为无法识别 https，所以会针对所有 https 连接进行随机的中断&lt;/li&gt;
+&lt;/ol&gt;
+    
+    </summary>
+    
+    
+      <category term="GFW" scheme="https://sodatea.github.io/tags/gfw/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>checkbox 元素的 click 事件回调里的坑</title>
+    <link href="https://sodatea.github.io/2015/09/25/checkbox-click-event/"/>
+    <id>https://sodatea.github.io/2015/09/25/checkbox-click-event/</id>
+    <published>2015-09-25T08:04:42.000Z</published>
+    <updated>2016-01-04T09:14:40.000Z</updated>
+    
+    <content type="html"><![CDATA[<p>最近在处理 <code>input[type=&quot;checkbox&quot;]</code> 的 <code>click</code> 事件时，发现了一些问题。<br>如果在回调函数中用了 <code>event.preventDefault</code>，那么函数中获取到的 <code>this.checked</code> 的值会有问题，Chrome/Firefox/Safari/Opera 获取到的是点击前的值，IE/Edge 下有时改变有时不变，具体 demo 可以<a href="https://jsbin.com/purado/edit?html,js,output" target="_blank" rel="external">看这里</a>。</p>
+<a id="more"></a>
+<p>查阅标准文档发现，在 <code>radio</code> 和 <code>checkbox</code> 元素的 <code>click</code> 事件回调中，<code>checked</code> 的值是 <strong>implementation dependent</strong> 的：</p>
+<blockquote>
+<p><strong>Note</strong>: During the handling of a click event on an input element with a type attribute that has the value “radio” or “checkbox”, some implementations may change the value of this property before the event is being dispatched in the document. If the default action of the event is canceled, the value of the property may be changed back to its original value. This means that the value of this property during the handling of click events is implementation dependent.</p>
+</blockquote>
+<p>原文<a href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-6043025" target="_blank" rel="external">在此</a>。</p>
+<p>所以姑且认为 IE/Edge 只是对于标准中的未定义行为有着不一样的实现。<br>但是去掉了 <code>preventDefault</code> 之后，IE 的行为又与其他浏览器一致了，<a href="http://jsbin.com/mexayo/edit?html,js,output" target="_blank" rel="external">见 demo</a>。<br>这样的话，说明 IE/Edge 只是 <code>preventDefault</code> 的实现与其他浏览器不同，而不是对于 <code>checked</code> 的值的处理……这个似乎并不符合标准，个人倾向于认为这是 IE/Edge 的一个 bug。</p>
+<p>总的来说，如果在事件回调中用到 <code>preventDefault</code> 了的话，在 <code>click</code> 事件的回调中获取 <code>checked</code> 的值是不靠谱的，而且 IE/Edge 的行为较为怪异，难以简单地 hack 掉。<br>目前看来，唯一绕过的办法是把跟 <code>this.checked</code> 值有关的操作放在一个 <code>setTimeout</code> 回调中。</p>
+<h2 id="关于-preventDefault-的标准行为"><a href="#关于-preventDefault-的标准行为" class="headerlink" title="关于 preventDefault 的标准行为"></a>关于 <code>preventDefault</code> 的标准行为</h2><p>根据 <a href="https://html.spec.whatwg.org/multipage/forms.html#checkbox-state-(type=checkbox" target="_blank" rel="external">HTML 标准</a>)，<code>input[type=checkbox]</code> 的 checkedness 在 pre-click activation steps 即被更改，而在 canceld activation steps 才被重置，<a href="https://html.spec.whatwg.org/multipage/interaction.html#activation" target="_blank" rel="external"><code>click</code> 事件的触发发生在这两者之间</a>。<br>所以，如果此处 checkedness 就是指 <code>checked</code> 的值的话，按理来说在事件回调中 <code>checked</code> 应该始终得到的是更改后的值，<code>preventDefault</code> 应当在事件处理完之后才发挥作用。</p>
+<p>如果按照上述理解，那前文所谓的 implementation specific 的行为其实是有标准可循、有着确切逻辑的，并不能由浏览器厂商自行决定（而且 IE/Edge 显然实现错了）。<br>所以目前怀疑这是标准的疏漏。</p>
+<p>补充：<a href="https://bugs.jquery.com/ticket/3827" target="_blank" rel="external">jQuery 1.9 中通过提前触发 click 事件然后再回调 fix 了这个问题</a></p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;p&gt;最近在处理 &lt;code&gt;input[type=&amp;quot;checkbox&amp;quot;]&lt;/code&gt; 的 &lt;code&gt;click&lt;/code&gt; 事件时，发现了一些问题。&lt;br&gt;如果在回调函数中用了 &lt;code&gt;event.preventDefault&lt;/code&gt;，那么函数中获取到的 &lt;code&gt;this.checked&lt;/code&gt; 的值会有问题，Chrome/Firefox/Safari/Opera 获取到的是点击前的值，IE/Edge 下有时改变有时不变，具体 demo 可以&lt;a href=&quot;https://jsbin.com/purado/edit?html,js,output&quot;&gt;看这里&lt;/a&gt;。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="DOM, W3C" scheme="https://sodatea.github.io/tags/dom-w3c/"/>
+    
+  </entry>
+  
+</feed>

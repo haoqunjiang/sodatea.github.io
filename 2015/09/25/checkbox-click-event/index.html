@@ -1,0 +1,32 @@
+<!DOCTYPE html><html lang="zh-cmn-Hans"><head><meta charset="utf-8"><title>checkbox 元素的 click 事件回调里的坑 · 胖茶的在线笔记</title><meta name="X-UA-Compatible" content="IE=edge"><meta name="description" content="最近在处理 input[type=&amp;quot;checkbox&amp;quot;] 的 click 事件时，发现了一些问题。如果在回调函数中用了 event.preventDefault，那么函数中获取到的 this.checked 的值会有问题，Chrome/Firefox/Safari/Opera 获取到的是点击前的值，IE/Edge 下有时改变有时不变，具体 demo 可以看这里。
+
+查阅标准文档发现，在 radio 和 checkbox 元素的 click 事件回调中，checked 的值是 implementation dependent 的：
+
+Note: During the handling of a click event "><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="shortcut icon" href="/favicon.png"><link rel="canonical" href="https://sodatea.github.io/2015/09/25/checkbox-click-event/"><link rel="stylesheet" href="//fonts.googleapis.com/css?family=Kreon:400,700"><link rel="stylesheet" href="//at.alicdn.com/t/font_1451304868_2981977.css"><link rel="stylesheet" href="/styles/sleepless.css"><script>if (["sodatea.github.io"].indexOf(window.location.host) >= 0 && window.location.protocol !== 'https:') {
+    window.location.protocol = 'https:';
+}</script></head><body><header class="site-header"><div class="container"><nav class="nav-links"><a class="logo-link" href="/"><img src="/favicon.png"></a><ul class="nav nav-list"><li class="nav-list-item"><a class="nav-list-link" href="/" target="_self">blog</a></li><li class="nav-list-item"><a class="nav-list-link" href="https://medium.com/@soda" target="_blank">en</a></li><li class="nav-list-item"><a class="nav-list-link" href="http://weibo.com/2451315930" target="_blank">weibo</a></li><li class="nav-list-item"><a class="nav-list-link" href="https://github.com/sodatea" target="_blank">github</a></li><li class="nav-list-item"><a class="nav-list-link" href="/atom.xml" target="_self">rss</a></li></ul></nav></div></header><main id="content"><div class="container"><div class="post"><article class="post-block"><header class="post-header"><h1 class="post-title"><a class="post-title-link" href="/2015/09/25/checkbox-click-event/">checkbox 元素的 click 事件回调里的坑</a></h1><span class="post-meta"><span class="post-time">2015-09-25</span></span></header><div class="post-content"><p>最近在处理 <code>input[type=&quot;checkbox&quot;]</code> 的 <code>click</code> 事件时，发现了一些问题。<br>如果在回调函数中用了 <code>event.preventDefault</code>，那么函数中获取到的 <code>this.checked</code> 的值会有问题，Chrome/Firefox/Safari/Opera 获取到的是点击前的值，IE/Edge 下有时改变有时不变，具体 demo 可以<a href="https://jsbin.com/purado/edit?html,js,output" target="_blank" rel="external">看这里</a>。</p>
+<a id="more"></a>
+<p>查阅标准文档发现，在 <code>radio</code> 和 <code>checkbox</code> 元素的 <code>click</code> 事件回调中，<code>checked</code> 的值是 <strong>implementation dependent</strong> 的：</p>
+<blockquote>
+<p><strong>Note</strong>: During the handling of a click event on an input element with a type attribute that has the value “radio” or “checkbox”, some implementations may change the value of this property before the event is being dispatched in the document. If the default action of the event is canceled, the value of the property may be changed back to its original value. This means that the value of this property during the handling of click events is implementation dependent.</p>
+</blockquote>
+<p>原文<a href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-6043025" target="_blank" rel="external">在此</a>。</p>
+<p>所以姑且认为 IE/Edge 只是对于标准中的未定义行为有着不一样的实现。<br>但是去掉了 <code>preventDefault</code> 之后，IE 的行为又与其他浏览器一致了，<a href="http://jsbin.com/mexayo/edit?html,js,output" target="_blank" rel="external">见 demo</a>。<br>这样的话，说明 IE/Edge 只是 <code>preventDefault</code> 的实现与其他浏览器不同，而不是对于 <code>checked</code> 的值的处理……这个似乎并不符合标准，个人倾向于认为这是 IE/Edge 的一个 bug。</p>
+<p>总的来说，如果在事件回调中用到 <code>preventDefault</code> 了的话，在 <code>click</code> 事件的回调中获取 <code>checked</code> 的值是不靠谱的，而且 IE/Edge 的行为较为怪异，难以简单地 hack 掉。<br>目前看来，唯一绕过的办法是把跟 <code>this.checked</code> 值有关的操作放在一个 <code>setTimeout</code> 回调中。</p>
+<h2 id="关于-preventDefault-的标准行为"><a href="#关于-preventDefault-的标准行为" class="headerlink" title="关于 preventDefault 的标准行为"></a>关于 <code>preventDefault</code> 的标准行为</h2><p>根据 <a href="https://html.spec.whatwg.org/multipage/forms.html#checkbox-state-(type=checkbox" target="_blank" rel="external">HTML 标准</a>)，<code>input[type=checkbox]</code> 的 checkedness 在 pre-click activation steps 即被更改，而在 canceld activation steps 才被重置，<a href="https://html.spec.whatwg.org/multipage/interaction.html#activation" target="_blank" rel="external"><code>click</code> 事件的触发发生在这两者之间</a>。<br>所以，如果此处 checkedness 就是指 <code>checked</code> 的值的话，按理来说在事件回调中 <code>checked</code> 应该始终得到的是更改后的值，<code>preventDefault</code> 应当在事件处理完之后才发挥作用。</p>
+<p>如果按照上述理解，那前文所谓的 implementation specific 的行为其实是有标准可循、有着确切逻辑的，并不能由浏览器厂商自行决定（而且 IE/Edge 显然实现错了）。<br>所以目前怀疑这是标准的疏漏。</p>
+<p>补充：<a href="https://bugs.jquery.com/ticket/3827" target="_blank" rel="external">jQuery 1.9 中通过提前触发 click 事件然后再回调 fix 了这个问题</a></p>
+</div></article></div></div></main><footer><div class="container"><div class="pagination"><a class="prev" href="/2015/12/23/all-i-know-about-the-wall/"><i class="iconfont icon-cc-left"></i>GFW 封锁方式以及翻墙手段汇总</a></div><div class="ds-thread" data-thread-key="2015/09/25/checkbox-click-event/" data-title="checkbox 元素的 click 事件回调里的坑" data-url="https://sodatea.github.io/2015/09/25/checkbox-click-event/" data-author-key="1"></div><script>var duoshuoQuery = {short_name:"sodatea"};
+(function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';ds.async = true;
+    ds.src = 'https://nzxbwjjh8.qnssl.com/duoshuo_embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] 
+     || document.getElementsByTagName('body')[0]).appendChild(ds);
+})();
+
+</script></div></footer><script>(function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;e=o.createElement(i);r=o.getElementsByTagName(i)[0];e.src='//www.google-analytics.com/analytics.js';r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));
+ga('create', 'UA-71940984-1', 'auto');
+ga('send','pageview');
+</script><script src="//cdn.bootcss.com/mathjax/2.5.3/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script></body></html>
